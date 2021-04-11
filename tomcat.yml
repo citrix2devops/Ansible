@@ -1,0 +1,67 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: Install jdk
+      apt:
+        name: openjdk-8-jre-headless
+        state: present
+
+    - name: copy jenkns file
+      ansible.builtin.copy:
+        src: jenkins
+        dest: /etc/default/jenkins
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: restart jenkins
+      service:
+        name: jenkins
+        state: restarted
+
+    - name: create tomcat group
+      group:
+        name: tomcat
+
+    - name: create tomcat user
+      user:
+        name: tomcat
+        group: tomcat
+        home: /usr/share/tomcat
+        createhome: no
+
+    - name: create tomcat directory inside /OPT
+      file:
+        path: /opt/tomcat
+        state: directory
+        mode: 0755
+
+    - name: download and extarct tomcat
+      unarchive:
+        src: http://apache.cs.utah.edu/tomcat/tomcat-8/v8.5.65/bin/apache-tomcat-8.5.65.tar.gz
+        dest: /opt/tomcat
+        remote_src: yes
+        extra_opts: [--strip-components=1]
+
+    - name: chnage ownership
+      file:
+        path: /opt/tomcat
+        owner: tomcat
+        group: tomcat
+        mode: "u=rwx,g=rwx,o=rwx"
+        recurse: yes
+        state: directory
+
+    - name: copy tomcat service
+      copy:
+        src: tomcat.service
+        dest: /etc/systemd/system/
+        mode: 0755
+
+    - name: start ad enable tomcat service
+      systemd:
+        name: tomcat
+        state: restarted
+        enabled: true
+        daemon_reload: true
